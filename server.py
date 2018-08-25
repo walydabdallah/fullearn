@@ -1,11 +1,12 @@
 import sqlite3
-from flask import Flask
+from flask import Flask, send_file
 app = Flask(__name__)
 
-@app.route("/")
-@app.route("/index.html")
-def indexPage():
-    return send_from_directory("html", "index.html")
+@app.route("/<path:path>")
+def catchAll(path):
+    if path == "":
+        return send_file("index.html")
+    return send_file(path)
 
 if __name__ == "__main__":
     app.run()
