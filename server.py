@@ -12,4 +12,4 @@ def catchAll(path):
     return send_file(path)
 
 if __name__ == "__main__":
-    app.run("", int(os.environ.get('PORT', 8000)))
+    app.run()
