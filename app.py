@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def indexPage():
-    return send_file("index.html")
+    return send_file("preorder.html")
 
 @app.route("/<path:path>")
 def catchAll(path):
