@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from flask import Flask, send_file
 app = Flask(__name__)
 
@@ -11,4 +12,4 @@ def catchAll(path):
     return send_file(path)
 
 if __name__ == "__main__":
-    app.run()
+    app.run("", int(os.environ.get('PORT', 8000)))
