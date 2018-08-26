@@ -10,7 +10,7 @@
 {
     font-size: 2.4rem;
 
-    min-width: 360px; 
+    min-width: 360px;
 
     border-radius: 60px;
 }
@@ -37,7 +37,7 @@
 
 .comingsoonFlat
 {
-    background-image: url(../../../app-assets/images/backgrounds/bg-17.jpg);
+    background-image: url("../../../../app-assets/images/backgrounds/bg-17.jpg");
     background-repeat: no-repeat;
     -webkit-background-size: cover;
             background-size: cover;
