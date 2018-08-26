@@ -6,6 +6,10 @@ app = Flask(__name__)
 def indexPage():
     return send_file("landing.html")
 
+@app.route("/preorder")
+def preorder():
+    return send_file("html/ltr/vertical-menu-template/coming-soon.html")
+
 @app.route("/<path:path>")
 def catchAll(path):
     return send_file(path)
