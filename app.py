@@ -6,7 +6,7 @@ app = Flask(__name__)
 def indexPage():
     return send_file("landing.html")
 
-@app.route("/preorder")
+@app.route("/preorder", methods=["POST"])
 def preorder():
     return send_file("html/ltr/vertical-menu-template/coming-soon.html")
 
