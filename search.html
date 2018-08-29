@@ -32,11 +32,7 @@
         outline: 0;
       }
       #logo {
-        position: absolute;
-        top:5px;
-        right: 5px;
         width: 100px;
-        z-index: 1000;
       }
     </style>
 
@@ -44,7 +40,7 @@
   </head>
   <body data-spy="scroll" data-target="#pb-navbar" data-offset="200">
 
-    <img id="logo" src="images/logo.png">
+
 
     <nav class="navbar navbar-expand-lg site-navbar navbar-light bg-light" id="pb-navbar">
 
@@ -53,9 +49,10 @@
           <span class="navbar-toggler-icon"></span>
         </button>
 
-        <a class="navbar-brand" href="index.html">Login</a>
+        <img src="images/logo.png" id="logo">
         <div class="collapse navbar-collapse justify-content-md-center" id="navbarsExample09">
           <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="#section-home">Login</a></li>
             <li class="nav-item"><a class="nav-link" href="#section-home">Search</a></li>
             <li class="nav-item"><a class="nav-link" href="#section-services">Account</a></li>
             <li class="nav-item"><a class="nav-link" href="#section-portfolio">Help</a></li>
