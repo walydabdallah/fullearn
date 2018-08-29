@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def indexPage():
-    return send_file("landing.html")
+    return send_file("search.html")
 
 @app.route("/notifyme", methods=["POST"])
 def preorder():
@@ -21,7 +21,6 @@ def preorder():
 
 @app.route("/<path:path>")
 def catchAll(path):
-    print(path)
     return send_file(path)
 
 if __name__ == "__main__":
