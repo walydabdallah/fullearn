@@ -2,13 +2,17 @@ import sqlite3
 from flask import Flask, send_file, url_for, session, request, jsonify, redirect
 from flask_oauthlib.client import OAuth
 import json
-import reddit
+import google_scrape
+import math
+import operator
 
 app = Flask(__name__)
 app.config['GOOGLE_ID'] = "90702021103-sm9vbhm4o9hbhp8qjfbc88hohanv64p2.apps.googleusercontent.com"
 app.config['GOOGLE_SECRET'] = "onx49MjUA-HHD-Ra3IYTYfgo"
 app.secret_key = 'development'
 oauth = OAuth(app)
+
+websites = ["reddit", "quora", "bodybuilding.com", "gamespot", "ign", "neogaf", "studentroom"]
 
 google = oauth.remote_app(
     'google',
@@ -49,25 +53,50 @@ def searchPage():
     location = contents.find(marker)
     replacement = ""
 
-    reddit_results = reddit.reddit_search(request.form["searchQuestion"], 10)
-    for result in reddit_results:
+    db = sqlite3.connect("alexaranks.db")
+    cursor = db.cursor()
+    search_results = []
+    for site in websites:
+        cursor.execute("select rank from ranks where website = '" + site + "';")
+        alexa_rank = cursor.fetchall()[0][0]
+        scraped = google_scrape.scrape_google(request.form["query"] + " " + site, int(10.0 * 2.0 / math.log(alexa_rank, 10)), "en")
+        print(len(scraped))
+        for result in scraped:
+            result["rank"] = result["rank"] * math.log(alexa_rank, 10)
+        search_results.extend(scraped)
+
+    search_results.sort(key=operator.itemgetter('rank'))
+
+    db.close()
+    for result in search_results:
+        validResult = False
+        for site in websites:
+            if result["link"].find(site) != -1:
+                validResult = True
+                break
+
+        if not validResult:
+            continue
+        if result["description"] == None:
+            continue
+
         replacement += '<div class="col-sm-6 col-lg-4 mb-4">'
         replacement += '<div class="blog-entry">'
         replacement += '<div class="blog-entry-text">'
-        title_text = result.title[ : 50]
-        if len(result.title) > 50:
+        title_text = result["title"][ : 75]
+        if len(result["title"]) > 75:
             title_text += " ..."
-        if len(title_text) < 54:
-            title_text += "&nbsp; " * (54 - len(title_text))
-        replacement += '<h3><a href="{}">{}</a></h3>'.format(result.shortlink, title_text)
-        post_text = result.selftext[ : 100]
-        if len(result.selftext) > 100:
+        if len(title_text) < 79:
+            title_text += "&nbsp; " * (79 - len(title_text))
+        replacement += '<h3><a href="{}">{}</a></h3>'.format(result["link"], title_text)
+        post_text = result["description"][ : 150]
+        if len(result["description"]) > 150:
             post_text += " ..."
-        if len(post_text) < 104:
-            post_text += "&nbsp; " * (104 - len(post_text))
+        if len(post_text) < 154:
+            post_text += "&nbsp; " * (154 - len(post_text))
         replacement += '<p class="mb-4">{}</p>'.format(post_text)
         replacement += '<div class="meta">'
-        replacement += '<a href="{}"><span class="icon-bubble"></span> {} Comments</a>'.format(result.shortlink, str(result.num_comments))
+        replacement += '<a href="#">Fullearn Score: {} </a>'.format(str(round(result["rank"], 4)))
         replacement += '</div></div></div></div>'
     return contents[ : location] + replacement + contents[location + len(marker) : ]
 
