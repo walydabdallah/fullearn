@@ -2,6 +2,8 @@ import sqlite3
 from flask import Flask, send_file, url_for, session, request, jsonify, redirect
 from flask_oauthlib.client import OAuth
 import json
+import reddit
+
 app = Flask(__name__)
 app.config['GOOGLE_ID'] = "90702021103-sm9vbhm4o9hbhp8qjfbc88hohanv64p2.apps.googleusercontent.com"
 app.config['GOOGLE_SECRET'] = "onx49MjUA-HHD-Ra3IYTYfgo"
@@ -33,12 +35,42 @@ def setLoginStatus(contents):
         replacement = '<li class="nav-item"><a class="nav-link" href="/login">Login</a></li>'
     return contents[ : location] + replacement + contents[location + len(marker) : ]
 
-@app.route("/search")
+@app.route("/search", methods=["GET", "POST"])
 def searchPage():
     file = open("search.html", "r", encoding="utf8")
     contents = file.read()
     file.close()
-    return setLoginStatus(contents)
+    contents = setLoginStatus(contents)
+
+    if request.method == "GET":
+        return contents
+
+    marker = "<!-- Search Results -->"
+    location = contents.find(marker)
+    replacement = ""
+
+    reddit_results = reddit.reddit_search(request.form["searchQuestion"], 10)
+    for result in reddit_results:
+        replacement += '<div class="col-sm-6 col-lg-4 mb-4">'
+        replacement += '<div class="blog-entry">'
+        replacement += '<div class="blog-entry-text">'
+        title_text = result.title[ : 50]
+        if len(result.title) > 50:
+            title_text += " ..."
+        if len(title_text) < 54:
+            title_text += "&nbsp; " * (54 - len(title_text))
+        replacement += '<h3><a href="{}">{}</a></h3>'.format(result.shortlink, title_text)
+        post_text = result.selftext[ : 100]
+        if len(result.selftext) > 100:
+            post_text += " ..."
+        if len(post_text) < 104:
+            post_text += "&nbsp; " * (104 - len(post_text))
+        replacement += '<p class="mb-4">{}</p>'.format(post_text)
+        replacement += '<div class="meta">'
+        replacement += '<a href="{}"><span class="icon-bubble"></span> {} Comments</a>'.format(result.shortlink, str(result.num_comments))
+        replacement += '</div></div></div></div>'
+    return contents[ : location] + replacement + contents[location + len(marker) : ]
+
 
 @app.route("/login")
 def loginPage():
@@ -46,6 +78,64 @@ def loginPage():
     contents = file.read()
     file.close()
     return setLoginStatus(contents)
+
+@app.route("/hashTest/<password>")
+def hashTest(password):
+    return str(hashPassword(password))
+
+def hashPassword(password):
+    hash = 0
+    for i in range(0, len(password)):
+        hash += ord(password[i])
+    return hash
+
+@app.route("/loginNormal")
+def loginNormal():
+    db = sqlite3.connect("users.db")
+    cursor = db.cursor()
+    password = request.args["password"]
+    email = request.args["email"]
+    cursor.execute("select * from users where email = " + "'" + email + "';")
+
+    userEntry = cursor.fetchall()
+    db.close()
+    if len(userEntry) == 0:
+        return "Invalid email address"
+    userEntry = userEntry[0]
+    if userEntry[2] == "google":
+        return "Please login with Google instead"
+    if hashPassword(password) == userEntry[1]:
+        session["email"] = userEntry[0]
+        return redirect("/search")
+    else:
+        return "Wrong password"
+
+@app.route("/createAccount", methods=["GET", "POST"])
+def createAccount():
+    if request.method == "GET":
+        file = open("createaccount.html", "r", encoding="utf8")
+        contents = file.read()
+        file.close()
+        return setLoginStatus(contents)
+    else:
+        db = sqlite3.connect("users.db")
+        cursor = db.cursor()
+        password = request.form["password"]
+        email = request.form["email"]
+        cursor.execute("select * from users where email = '" + email + "';")
+        userEntry = cursor.fetchall()
+
+        # If the email address already exists in the database
+        if len(userEntry) > 0:
+            return "There is already an account associated with this email address."
+
+        hash = hashPassword(password)
+
+        cursor.execute("insert into users values ('" + email + "', '" + str(hash) + "', 'normal');")
+        db.commit()
+        db.close()
+        return redirect("/login")
+
 
 @app.route('/loginGoogle')
 def loginGoogle():
@@ -63,19 +153,10 @@ def googleAuthorized():
     me = google.get('userinfo')
     db = sqlite3.connect("users.db")
     cursor = db.cursor()
-    cursor.execute("select id from users where email = '" + me.data["email"] + "';")
+    cursor.execute("select * from users where email = " + "'" + me.data["email"] + "';")
     if len(cursor.fetchall()) == 0:
-        cursor.execute("select id from users")
-        id = 0
-        results = cursor.fetchall()
-        if len(results) == 0:
-            id = 1
-        else:
-            id = results[-1][0] + 1
-        cursor.execute("insert into users values (" + str(id) + ", '" + me.data["email"] + "');")
+        cursor.execute("insert into users values ('" + me.data["email"] + "', 0, 'google');")
         db.commit()
-    cursor.execute("select id from users where email = '" + me.data["email"] + "';")
-    session["user_id"] = cursor.fetchall()[0][0]
     session["email"] = me.data["email"]
     db.close()
     return redirect("/search")
@@ -87,7 +168,6 @@ def get_google_oauth_token():
 @app.route('/logoutGoogle')
 def logout():
     session.pop('google_token', None)
-    session.pop("user_id", None)
     session.pop("email", None)
     return redirect("/search")
 

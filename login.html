@@ -24,6 +24,15 @@
       #menu li a {
         color: black !important;
       }
+      .btn-primary {
+        margin: 10px auto;
+        width: 250px;
+        display: block;
+      }
+      .form-control {
+        max-width: 530px;
+        margin: 10px auto;
+      }
     </style>
 
 
@@ -64,16 +73,20 @@
     <section class="site-section bg-light" id="section-contact" style="padding-top: 30px;">
       <div class="container">
         <div class="row">
-          <div class="col-md-12 mb-5">
-            <div class="section-heading text-center">
+          <div class="col-md-12 mb-5" style="margin-bottom: 10px !important;">
+            <div class="section-heading text-center" style="margin-bottom: 0px;">
               <h2><strong>Login here</strong></h2>
             </div>
           </div>
         </div>
-        <form method="GET" action="/loginGoogle">
-          <div style="text-align: center;">
-            <input type="submit" class="btn btn-primary  px-4 py-3" value="Log in with Google">
-          </div>
+        <form id="loginForm" action="/loginNormal" style="text-align: center; width: 100%;" method="GET">
+          <input type="email" class="form-control px-3 py-4" placeholder="Your Email" name="email">
+          <input type="password" class="form-control px-3 py-4" placeholder="Your Password" name="password">
+          <br>
+          <input type="submit" class="btn btn-primary  px-4 py-3" value="Login">
+          <input type="submit" class="btn btn-primary  px-4 py-3" value="Create Account" formaction="/createAccount">
+          <br>
+          <input type="submit" class="btn btn-primary  px-4 py-3" value="Login With Google" formaction="/loginGoogle">
         </form>
       </div>
     </section>
