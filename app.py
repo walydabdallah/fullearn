@@ -103,7 +103,7 @@ def searchPage():
     for result in search_results:
         # Google search results with no description tend to be advertised ones hence we ignore them since their format is different compared
         # to standard search results.
-        if result.description == None:
+        if result.description == None or result.link == None:
             continue
 
         validResult = False
