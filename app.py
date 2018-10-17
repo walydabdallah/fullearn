@@ -4,6 +4,7 @@ from flask_oauthlib.client import OAuth
 import google_scrape
 import math
 import operator
+from google import google
 
 app = Flask(__name__)
 app.config['GOOGLE_ID'] = "90702021103-sm9vbhm4o9hbhp8qjfbc88hohanv64p2.apps.googleusercontent.com"
@@ -12,7 +13,7 @@ app.secret_key = 'development'
 oauth = OAuth(app)
 
 # Allows for Google authentication
-google = oauth.remote_app(
+googleAuth = oauth.remote_app(
     'google',
     consumer_key=app.config.get('GOOGLE_ID'),
     consumer_secret=app.config.get('GOOGLE_SECRET'),
@@ -27,7 +28,7 @@ google = oauth.remote_app(
 )
 
 # List of source websites that Fullearn collects answers from
-websites = ["reddit", "quora", "bodybuilding.com", "gamespot", "ign", "neogaf", "studentroom"]
+websites = ["reddit", "quora", "bodybuilding.com", "gamespot", "neogaf", "studentroom"]
 
 db = sqlite3.connect("alexaranks.db")
 cursor = db.cursor()
@@ -86,29 +87,30 @@ def searchPage():
         # If the question is 'How to get a girlfriend' and the website that we are currently collecting from is reddit
         # we'd ask on Google 'how to get a girlfriend reddit'
         # The number of results to scrape from Google is calculated using 10 * 2 / log(AlexaRank)
-        scraped = google_scrape.scrape_google(request.form["query"] + " " + site, int(10.0 * 2.0 / math.log(alexaRanks[site], 10)), "en")
+        response = google.search(request.form["query"] + " " + site)
         # The Google results are already ranked from 1 to say, 10, obviously. We now multiply these ranks by log(AlexaRank) so that
         # less popular websites (which would have higher Alexa rank therefore) have their ranks increased relative to popular, low Alexa rank
         # websites. This allows answers from more popular websites to have lower rank values and thus get displayed first on the page.
-        for result in scraped:
-            result["rank"] = result["rank"] * math.log(alexaRanks[site], 10)
-        search_results.extend(scraped)
+        for result in response:
+            result.index = (result.index + 1) * math.log(alexaRanks[site], 10)
+            result.name = result.name[ : result.name.find("http")]
+        search_results.extend(response)
 
     # By this point search_results contains all the results from all the different source websites
     # Having calculated the new rankings using the Alexa algorithm, sort all the search results by this rank
-    search_results.sort(key=operator.itemgetter('rank'))
+    search_results.sort(key=lambda x: x.index)
 
     for result in search_results:
         # Google search results with no description tend to be advertised ones hence we ignore them since their format is different compared
         # to standard search results.
-        if result["description"] == None:
+        if result.description == None:
             continue
 
         validResult = False
         # When searching 'how to get a girlfriend reddit' on Google not all the results are even going to be from reddit. So by checking
         # whether reddit is in the URL allows us to filter out the non-reddit results. Same idea for all the other sites we're collecting from.
         for site in websites:
-            if result["link"].find(site) != -1:
+            if result.link.find(site) != -1:
                 validResult = True
                 break
 
@@ -120,19 +122,19 @@ def searchPage():
         replacement += '<div class="blog-entry-text">'
 
         # Appends '...' when the title exceeds the max length
-        title_text = result["title"][ : titleMaxLen]
-        if len(result["title"]) > titleMaxLen:
+        title_text = result.name[ : titleMaxLen]
+        if len(result.name) > titleMaxLen:
             title_text += " ..."
 
         # To ensure that each flashcard displays with the same dimensions, we add white space so that all flashcard titles have the same length
         if len(title_text) < titleMaxLen + 4:
             title_text += "&nbsp; " * (titleMaxLen + 4 - len(title_text))
 
-        replacement += '<h3><a href="{}">{}</a></h3>'.format(result["link"], title_text)
+        replacement += '<h3><a href="{}">{}</a></h3>'.format(result.link, title_text)
 
         # Appends '...' when the flashcard body exceeds the max length
-        post_text = result["description"][ : bodyMaxLen]
-        if len(result["description"]) > bodyMaxLen:
+        post_text = result.description[ : bodyMaxLen]
+        if len(result.description) > bodyMaxLen:
             post_text += " ..."
 
         # To ensure that each flashcard displays with the same dimensions, we add white space so that all flashcard bodies have the same length
@@ -143,7 +145,7 @@ def searchPage():
         replacement += '<div class="meta">'
 
         # Displays score produced by the Alexa algorithm on the flashcard for debugging purposes, might be best to remove in production build
-        replacement += '<a href="#">Fullearn Score: {} </a>'.format(str(round(result["rank"], 4)))
+        replacement += '<a href="#">Fullearn Score: {} </a>'.format(str(round(result.index, 4)))
 
         replacement += '</div></div></div></div>'
     return contents[ : location] + replacement + contents[location + len(marker) : ]
@@ -223,11 +225,11 @@ def createAccount():
 # Handles Google authentication
 @app.route('/loginGoogle')
 def loginGoogle():
-    return google.authorize(callback=url_for('googleAuthorized', _external=True))
+    return googleAuth.authorize(callback=url_for('googleAuthorized', _external=True))
 
 @app.route('/loginGoogle/authorized')
 def googleAuthorized():
-    resp = google.authorized_response()
+    resp = googleAuth.authorized_response()
     if resp is None:
         return 'Access denied: reason=%s error=%s' % (
             request.args['error_reason'],
@@ -237,7 +239,7 @@ def googleAuthorized():
     session['google_token'] = (resp['access_token'], '')
 
     # Gets the Google user profile from the Google API
-    me = google.get('userinfo')
+    me = googleAuth.get('userinfo')
 
     db = sqlite3.connect("users.db")
     cursor = db.cursor()
@@ -254,7 +256,7 @@ def googleAuthorized():
     return redirect("/search")
 
 # Retrieves the Google access token used to perform Google API calls
-@google.tokengetter
+@googleAuth.tokengetter
 def get_google_oauth_token():
     return session.get('google_token')
 
